@@ -11,15 +11,27 @@ module Kramdown
   module Parser
     class Kramdown
 
-      EMPHASIS_START = /(?:\*\*?|__?)/
+      EMPHASIS_START = /(?:\*\*?|__?|~~)/
 
       # Parse the emphasis at the current location.
       def parse_emphasis
         start_line_number = @src.current_line_number
         result = @src.scan(EMPHASIS_START)
-        element = (result.length == 2 ? :strong : :em)
         type = result[0..0]
         reset_pos = @src.pos
+
+        if result.length == 2
+          if type == '~'
+            element = :del
+          else
+            element = :strong
+          end
+        elsif type == '_'
+          element = :u
+        else
+          element = :em
+        end
+
 
         if (type == '_' && @src.pre_match =~ /[[:alnum:]]\z/ && @src.check(/[[:alnum:]]/)) || @src.check(/\s/) ||
             @tree.type == element || @stack.any? {|el, _| el.type == element}
@@ -51,7 +63,7 @@ module Kramdown
           add_text(result)
         end
       end
-      define_parser(:emphasis, EMPHASIS_START, '\*|_')
+      define_parser(:emphasis, EMPHASIS_START, '\*|_|~')
 
     end
   end

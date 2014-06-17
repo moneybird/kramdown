@@ -293,6 +293,8 @@ module Kramdown
         format_as_span_html(el.type, el.attr, inner(el, indent))
       end
       alias :convert_strong :convert_em
+      alias :convert_u :convert_em
+      alias :convert_del :convert_em
 
       def convert_entity(el, indent)
         entity_to_str(el.value, el.options[:original])
