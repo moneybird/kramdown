@@ -25,9 +25,10 @@ module Kramdown
     class Markdown < Kramdown
 
       # Array with all the parsing methods that should be removed from the standard kramdown parser.
-      EXTENDED = [:codeblock_fenced, :table, :definition_list, :footnote_definition, :abbrev_definition, :block_math,
+      EXTENDED = [:codeblock_fenced, :definition_list, :footnote_definition, :abbrev_definition, :block_math,
                   :block_extensions,
-                  :footnote_marker, :smart_quotes, :inline_math, :span_extensions, :typographic_syms]
+                  :footnote_marker, :inline_math, :span_extensions,
+                  :codeblock, :link, :link_definition, :setext_header, :atx_header]
 
       def initialize(source, options) # :nodoc:
         super
