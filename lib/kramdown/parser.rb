@@ -21,6 +21,7 @@ module Kramdown
     autoload :Html, 'kramdown/parser/html'
     autoload :Markdown, 'kramdown/parser/markdown'
     autoload :GFM, 'kramdown/parser/gfm'
+    autoload :MarkdownLite, 'kramdown/parser/markdown_lite'
 
   end
 
