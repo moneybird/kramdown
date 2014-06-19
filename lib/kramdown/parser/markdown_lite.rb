@@ -9,11 +9,11 @@ module Kramdown
     class MarkdownLite < Markdown
 
       # Array with all the parsing methods that should be removed from the standard markdown parser.
-      EXTENDED = [:autolink, :blank_line, :blockquote, :horizontal_rule, :line_break, :list, :paragraph, :table]
+      EXTENDED = [:autolink, :blank_line, :blockquote, :horizontal_rule, :list, :paragraph, :table]
 
       def initialize(source, options)
         super
-        @block_parsers.delete_if {|i| EXTENDED.include?(i)}
+        @block_parsers = []
         @span_parsers.delete_if {|i| EXTENDED.include?(i)}
       end
 

@@ -28,12 +28,36 @@ module Kramdown
       EXTENDED = [:codeblock_fenced, :definition_list, :footnote_definition, :abbrev_definition, :block_math,
                   :block_extensions,
                   :footnote_marker, :inline_math, :span_extensions,
-                  :codeblock, :link, :link_definition, :setext_header, :atx_header]
+                  :codeblock, :link, :link_definition, :setext_header, :atx_header, :line_break]
 
       def initialize(source, options) # :nodoc:
         super
         @block_parsers.delete_if {|i| EXTENDED.include?(i)}
         @span_parsers.delete_if {|i| EXTENDED.include?(i)}
+      end
+
+      def parse
+        super
+        add_hard_line_breaks(@root) if @options[:hard_wrap]
+      end
+
+      def add_hard_line_breaks(element)
+        element.children.map! do |child|
+          if child.type == :text && child.value =~ /\n/
+            children = []
+            lines = child.value.split(/\n(?=.)/)
+            lines.each_with_index do |line, index|
+              children << Element.new(:text, (index > 0 ? "\n#{line}" : line))
+              children << Element.new(:br) if index < lines.size - 1
+            end
+            children
+          elsif child.type == :html_element
+            child
+          else
+            add_hard_line_breaks(child)
+            child
+          end
+        end.flatten!
       end
 
       # :stopdoc:
