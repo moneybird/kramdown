@@ -1,6 +1,7 @@
 lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'kramdown'
+require 'rake'
 
 Gem::Specification.new do |s|
 
@@ -15,7 +16,7 @@ EOF
       s.license = 'MIT'
 
       #### Dependencies, requirements and files
-      s.files = [
+      s.files = FileList.new([
                             'Rakefile',
                             'setup.rb',
                             'COPYING', 'README.md', 'AUTHORS',
@@ -27,7 +28,7 @@ EOF
                             'data/**/*',
                             'doc/**',
                             'test/**/*'
-                           ]
+                           ]).to_a
 
       s.require_path = 'lib'
       s.executables = ['kramdown']
