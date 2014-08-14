@@ -15,7 +15,7 @@ module Kramdown
 
       # Normalize the link identifier.
       def normalize_link_id(id)
-        id.gsub(/[\s\n]+/, ' ').downcase
+        id.gsub(/[\s]+/, ' ').downcase
       end
 
       LINK_DEFINITION_START = /^#{OPT_SPACE}\[([^\n\]]+)\]:[ \t]*(?:<(.*?)>|([^'"\n]*?\S[^'"\n]*?))[ \t]*?(?:\n?[ \t]*?(["'])(.+?)\4[ \t]*?)?\n/
@@ -87,7 +87,7 @@ module Kramdown
           if @link_defs.has_key?(link_id)
             add_link(el, @link_defs[link_id].first, @link_defs[link_id].last, alt_text)
           else
-            warning("No link definition for link ID '#{link_id}' found")
+            warning("No link definition for link ID '#{link_id}' found on line #{start_line_number}")
             @src.pos = reset_pos
             add_text(result)
           end
