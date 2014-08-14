@@ -28,7 +28,7 @@ module Kramdown
       EXTENDED = [:codeblock_fenced, :definition_list, :footnote_definition, :abbrev_definition, :block_math,
                   :block_extensions,
                   :footnote_marker, :inline_math, :span_extensions,
-                  :codeblock, :link, :link_definition, :setext_header, :atx_header, :line_break]
+                  :codeblock, :autolink, :link, :link_definition, :setext_header, :atx_header, :line_break]
 
       def initialize(source, options) # :nodoc:
         super
