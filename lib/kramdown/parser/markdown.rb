@@ -48,6 +48,7 @@ module Kramdown
             lines = child.value.split(/\n(?=.)/)
             lines.each_with_index do |line, index|
               children << Element.new(:text, (index > 0 ? "\n#{line}" : line))
+              children << Element.new(:br) if line =~ /\n/ and index < lines.size - 1
               children << Element.new(:br) if index < lines.size - 1
             end
             children
