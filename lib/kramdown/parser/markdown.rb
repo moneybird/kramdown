@@ -42,7 +42,9 @@ module Kramdown
       end
 
       def add_hard_line_breaks(element)
+        parent_index = -1
         element.children.map! do |child|
+          parent_index += 1
           if child.type == :text && child.value =~ /\n/
             children = []
             lines = child.value.split(/\n(?=.)/)
@@ -50,6 +52,10 @@ module Kramdown
               children << Element.new(:text, (index > 0 ? "\n#{line}" : line))
               children << Element.new(:br) if line =~ /\n/ and index < lines.size - 1
               children << Element.new(:br) if index < lines.size - 1
+              if line.end_with?("\n") and (index == lines.size - 1) and
+                element.try(:type) == :p and (next_sibling = element.children.fetch(parent_index + 1, nil)).present? and Element.category(next_sibling) == :span
+                  children << Element.new(:br)
+              end
             end
             children
           elsif child.type == :html_element
