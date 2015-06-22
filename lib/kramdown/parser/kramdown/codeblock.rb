@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 #--
-# Copyright (C) 2009-2014 Thomas Leitner <t_leitner@gmx.at>
+# Copyright (C) 2009-2015 Thomas Leitner <t_leitner@gmx.at>
 #
 # This file is part of kramdown which is licensed under the MIT.
 #++
@@ -32,7 +32,7 @@ module Kramdown
 
 
       FENCED_CODEBLOCK_START = /^~{3,}/
-      FENCED_CODEBLOCK_MATCH = /^((~){3,})\s*?(\w+)?\s*?\n(.*?)^\1\2*\s*?\n/m
+      FENCED_CODEBLOCK_MATCH = /^((~){3,})\s*?(\w[\w-]*)?\s*?\n(.*?)^\1\2*\s*?\n/m
 
       # Parse the fenced codeblock at the current location.
       def parse_codeblock_fenced

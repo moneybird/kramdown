@@ -1,4 +1,12 @@
 # -*- coding: utf-8 -*-
+#
+#--
+# Copyright (C) 2009-2015 Thomas Leitner <t_leitner@gmx.at>
+#
+# This file is part of kramdown which is licensed under the MIT.
+#++
+#
+
 
 require 'minitest/autorun'
 require 'kramdown'
@@ -151,6 +159,21 @@ describe 'location' do
       * {:.line-5} * {:.line-5} one
         * {:.line-6} two
     ),
+    'gh issue 158' => %(
+      😁😁😁😁😁😁😁😁😁😁😁😁😁😁😁😁😁😁😁😁😁😁😁😁😁😁😁😁😁😁
+      {:.line-1}
+
+      - {:.line-4} T
+      {:.line-4}
+
+      # T
+      {:.line-7}
+    ),
+    'gh issue 243 - HTML raw elements' => %(
+      <ul class="line-1">
+        <li class="line-2">Test</li>
+      </ul>
+    ),
   }
   test_cases.each do |name, test_string|
     it "Handles #{ name }" do
@@ -167,6 +190,30 @@ describe 'location' do
     )
     doc = Kramdown::Document.new(test_string.strip)
     doc.warnings.must_equal ["Duplicate abbreviation ID 'duplicate' on line 4 - overwriting"]
+  end
+
+  it 'handles abbreviations' do
+    str = "This *is* ABC and\n**and** ABC second\nanother ABC\nas ABC as\nABC at the end.\n\n*[ABC]: ABC"
+    doc = Kramdown::Document.new(str)
+    doc.root.children.first.children.select {|e| e.type == :abbreviation}.each_with_index do |e, i|
+      assert_equal(i + 1, e.options[:location])
+    end
+  end
+
+  it 'handles line breaks' do
+    str = "First  \nsecond\\\\\nthird  \n"
+    doc = Kramdown::Document.new(str)
+    doc.root.children.first.children.select {|e| e.type == :br}.each_with_index do |e, i|
+      assert_equal(i + 1, e.options[:location])
+    end
+  end
+
+  it 'handles smart quotes' do
+    str = "This is 'first'\nand 'second' and\n'third'"
+    doc = Kramdown::Document.new(str)
+    doc.root.children.first.children.select {|e| e.type == :smart_quote}.each_with_index do |e, i|
+      assert_equal(((i + 1) /2.0).ceil, e.options[:location])
+    end
   end
 
 end

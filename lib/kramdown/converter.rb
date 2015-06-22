@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 #
 #--
-# Copyright (C) 2009-2014 Thomas Leitner <t_leitner@gmx.at>
+# Copyright (C) 2009-2015 Thomas Leitner <t_leitner@gmx.at>
 #
 # This file is part of kramdown which is licensed under the MIT.
 #++
 #
+
+require 'kramdown/utils'
 
 module Kramdown
 
@@ -24,6 +26,40 @@ module Kramdown
     autoload :Toc, 'kramdown/converter/toc'
     autoload :RemoveHtmlTags, 'kramdown/converter/remove_html_tags'
     autoload :Pdf, 'kramdown/converter/pdf'
+
+    extend ::Kramdown::Utils::Configurable
+
+    configurable(:syntax_highlighter)
+
+    ['Minted', "Coderay", "Rouge"].each do |klass_name|
+      kn_down = klass_name.downcase.intern
+      add_syntax_highlighter(kn_down) do |converter, text, lang, type, opts|
+        require "kramdown/converter/syntax_highlighter/#{kn_down}"
+        klass = ::Kramdown::Utils.deep_const_get("::Kramdown::Converter::SyntaxHighlighter::#{klass_name}")
+        if !klass.const_defined?(:AVAILABLE) || klass::AVAILABLE
+          add_syntax_highlighter(kn_down, klass)
+        else
+          add_syntax_highlighter(kn_down) {|*args| nil}
+        end
+        syntax_highlighter(kn_down).call(converter, text, lang, type, opts)
+      end
+    end
+
+    configurable(:math_engine)
+
+    ['Mathjax', "MathjaxNode", "Ritex", "Itex2MML"].each do |klass_name|
+      kn_down = klass_name.downcase.intern
+      add_math_engine(kn_down) do |converter, el, opts|
+        require "kramdown/converter/math_engine/#{kn_down}"
+        klass = ::Kramdown::Utils.deep_const_get("::Kramdown::Converter::MathEngine::#{klass_name}")
+        if !klass.const_defined?(:AVAILABLE) || klass::AVAILABLE
+          add_math_engine(kn_down, klass)
+        else
+          add_math_engine(kn_down) {|*args| nil}
+        end
+        math_engine(kn_down).call(converter, el, opts)
+      end
+    end
 
   end
 

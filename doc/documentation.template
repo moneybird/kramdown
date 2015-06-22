@@ -11,6 +11,14 @@
   * [LaTeX](converter/latex.html)
   * [kramdown](converter/kramdown.html)
   * [RemoveHtmlTags](converter/remove_html_tags.html)
+* Syntax Highlighters
+  * [Coderay](syntax_highlighter/coderay.html)
+  * [Rouge](syntax_highlighter/rouge.html)
+* Math Engines
+  * [MathJax](math_engine/mathjax.html)
+  * [Ritex](math_engine/ritex.html)
+  * [itex2MML](math_engine/itex2mml.html)
+  * [Mathjax-Node](math_engine/mathjaxnode.html)
 * [Configuration Options](options.html)
 * [Tests](tests.html)
 

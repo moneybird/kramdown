@@ -1,4 +1,12 @@
 # -*- coding: utf-8 -*-
+#
+#--
+# Copyright (C) 2009-2015 Thomas Leitner <t_leitner@gmx.at>
+#
+# This file is part of kramdown which is licensed under the MIT.
+#++
+#
+
 
 require 'strscan'
 
@@ -23,29 +31,32 @@ module Kramdown
         @previous_line_number = @start_line_number
       end
 
-      # To make this unicode (multibyte) aware, we have to use #charpos which was added in Ruby
-      # version 2.0.0.
-      #
-      # This method will work with older versions of Ruby, however it will report incorrect line
-      # numbers if the scanned string contains multibyte characters.
-      if instance_methods.include?(:charpos)
-        def best_pos
-          charpos
-        end
-      else
-        def best_pos
-          pos
-        end
-      end
-
       # Sets the byte position of the scan pointer.
       #
       # Note: This also resets some internal variables, so always use pos= when setting the position
       # and don't use any other method for that!
       def pos=(pos)
+        if self.pos > pos
+          @previous_line_number = @start_line_number
+          @previous_pos = 0
+        end
         super
-        @previous_line_number = @start_line_number
-        @previous_pos = 0
+      end
+
+      # Return information needed to revert the byte position of the string scanner in a performant
+      # way.
+      #
+      # The returned data can be fed to #revert_pos to revert the position to the saved one.
+      #
+      # Note: Just saving #pos won't be enough.
+      def save_pos
+        [pos, @previous_pos, @previous_line_number]
+      end
+
+      # Revert the position to one saved by #save_pos.
+      def revert_pos(data)
+        self.pos = data[0]
+        @previous_pos, @previous_line_number = data[1], data[2]
       end
 
       # Returns the line number for current charpos.
@@ -61,7 +72,7 @@ module Kramdown
         old_pos = pos + 1
         @previous_line_number += 1 while strscan.skip_until(/\n/) && strscan.pos <= old_pos
 
-        @previous_pos = (eos? ? best_pos : best_pos + 1)
+        @previous_pos = (eos? ? pos : pos + 1)
         @previous_line_number
       end
 

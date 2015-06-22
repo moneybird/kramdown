@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 #--
-# Copyright (C) 2009-2014 Thomas Leitner <t_leitner@gmx.at>
+# Copyright (C) 2009-2015 Thomas Leitner <t_leitner@gmx.at>
 #
 # This file is part of kramdown which is licensed under the MIT.
 #++
@@ -20,6 +20,7 @@ module Kramdown
     autoload :OrderedHash, 'kramdown/utils/ordered_hash'
     autoload :Unidecoder, 'kramdown/utils/unidecoder'
     autoload :StringScanner, 'kramdown/utils/string_scanner'
+    autoload :Configurable, 'kramdown/utils/configurable'
 
     # Treat +name+ as if it were snake cased (e.g. snake_case) and camelize it (e.g. SnakeCase).
     def self.camelize(name)
@@ -33,6 +34,23 @@ module Kramdown
       name.gsub!(/([a-z])([A-Z])/,'\1_\2')
       name.downcase!
       name
+    end
+
+    if RUBY_VERSION < '2.0'
+
+      # Resolve the recursive constant +str+.
+      def self.deep_const_get(str)
+        names = str.split(/::/)
+        names.shift if names.first.empty?
+        names.inject(::Object) {|mod, s| mod.const_get(s)}
+      end
+
+    else
+
+      def self.deep_const_get(str)
+        ::Object.const_get(str)
+      end
+
     end
 
   end

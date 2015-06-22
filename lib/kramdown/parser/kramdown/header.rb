@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 #--
-# Copyright (C) 2009-2014 Thomas Leitner <t_leitner@gmx.at>
+# Copyright (C) 2009-2015 Thomas Leitner <t_leitner@gmx.at>
 #
 # This file is part of kramdown which is licensed under the MIT.
 #++
@@ -34,7 +34,7 @@ module Kramdown
 
 
       ATX_HEADER_START = /^\#{1,6}/
-      ATX_HEADER_MATCH = /^(\#{1,6})(.+?)\s*?#*#{HEADER_ID}\s*?\n/
+      ATX_HEADER_MATCH = /^(\#{1,6})(.+?(?:\\#)?)\s*?#*#{HEADER_ID}\s*?\n/
 
       # Parse the Atx header at the current location.
       def parse_atx_header

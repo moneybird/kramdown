@@ -76,34 +76,21 @@ kramdown supports setting a code language for code blocks and code spans, see [L
 Blocks](../syntax.html#language-of-code-blocks). This language will be used for highlighting code
 blocks and spans.
 
-Syntax highlighting for text is done using the [CodeRay](http://coderay.rubychan.de) library which
-can be installed, for example, via Rubygems (the gem name is `coderay`). Have a look at the CodeRay
-homepage to see all supported languages.
+The actual syntax highlighting is configurable via the [option
+'syntax_highlighter'](../options.html#option-syntax-highlighter). The default value is 'coderay'
+which implies that the [Coderay syntax highlighter](../syntax_highlighter/coderay.html) is used.
 
-> Note that syntax highlighting won't work unless the CodeRay library is installed!
-{:.information}
-
-Here is an example on how Ruby code is highlighted:
-
-    require 'kramdown'
-
-    Kramdown::Document.new('* something').to_html
-    puts 1 + 1
-{: .language-ruby}
-
-You can set the option `enable_coderay` to `false` to completely disable this feature, leaving a
-clean source.
+Another syntax highlighter is [Rouge](../syntax_highlighter/rouge.html) which is Pygments
+compatible, i.e. it supports all of Pygments CSS themes.
 
 
 ## Math Support
 
-If you want math formulas to be correctly displayed, you have to include the [MathJax] javascript
-library in the HTML file (see the [MathJax homepage][MathJax] for details). Note that kramdown does
-*not* ship with the MathJax library and that therefore the `default` template does *not* include a
-link to it!
+kramdown supports the use of various math engines. The default math engine is
+[MathJax](../math_engine/mathjax.html).
 
-Why MathJax? Because I think that it is simply the best way to display LaTeX math formulas on the
-Web. It is easy to install and use and works on all modern browsers.
+Alternative math engines are [Ritex](../math_engine/ritex.html) and
+[itex2MML](../math_engine/itex2mml.html) both of which output MathML.
 
 
 ## Emphasis
@@ -149,7 +136,7 @@ Here is an example:
 
 The HTML converter supports the following options:
 
-{options: {items: [auto_ids, auto_id_prefix, auto_id_stripping, transliterated_header_ids, template, footnote_nr, entity_output, smart_quotes, toc_levels, enable_coderay, coderay_wrap, coderay_line_numbers, coderay_line_number_start, coderay_tab_width, coderay_bold_every, coderay_css, coderay_default_lang]}}
+{options: {items: [auto_ids, auto_id_prefix, auto_id_stripping, transliterated_header_ids, template, footnote_nr, entity_output, smart_quotes, toc_levels, enable_coderay, coderay_wrap, coderay_line_numbers, coderay_line_number_start, coderay_tab_width, coderay_bold_every, coderay_css, coderay_default_lang, syntax_highlighter, syntax_highlighter_opts, math_engine, math_engine_opts]}}
 
 
 {include_file: doc/links.markdown}
