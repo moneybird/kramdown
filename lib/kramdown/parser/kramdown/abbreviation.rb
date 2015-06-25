@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 #--
-# Copyright (C) 2009-2014 Thomas Leitner <t_leitner@gmx.at>
+# Copyright (C) 2009-2015 Thomas Leitner <t_leitner@gmx.at>
 #
 # This file is part of kramdown which is licensed under the MIT.
 #++
@@ -20,11 +20,19 @@ module Kramdown
         abbrev_id, abbrev_text = @src[1], @src[2]
         abbrev_text.strip!
         warning("Duplicate abbreviation ID '#{abbrev_id}' on line #{start_line_number} - overwriting") if @root.options[:abbrev_defs][abbrev_id]
+        @tree.children << new_block_el(:eob, :abbrev_def)
         @root.options[:abbrev_defs][abbrev_id] = abbrev_text
-        @tree.children << Element.new(:eob, :abbrev_def)
+        @root.options[:abbrev_attr][abbrev_id] = @tree.children.last
         true
       end
       define_parser(:abbrev_definition, ABBREV_DEFINITION_START)
+
+      # Correct abbreviation attributes.
+      def correct_abbreviations_attributes
+        @root.options[:abbrev_attr].keys.each do |k|
+          @root.options[:abbrev_attr][k] = @root.options[:abbrev_attr][k].attr
+        end
+      end
 
       # Replace the abbreviation text with elements.
       def replace_abbreviations(el, regexps = nil)
@@ -38,16 +46,20 @@ module Kramdown
           if child.type == :text
             if child.value =~ regexps.first
               result = []
-              strscan = Kramdown::Utils::StringScanner.new(child.value)
+              strscan = Kramdown::Utils::StringScanner.new(child.value, child.options[:location])
+              text_lineno = strscan.current_line_number
               while temp = strscan.scan_until(regexps.last)
+                abbr_lineno = strscan.current_line_number
                 abbr = strscan.scan(regexps.first) # begin of line case of abbr with \W char as first one
                 if abbr.nil?
                   temp << strscan.scan(/\W|^/)
                   abbr = strscan.scan(regexps.first)
                 end
-                result << Element.new(:text, temp) << Element.new(:abbreviation, abbr)
+                result << Element.new(:text, temp, nil, :location => text_lineno)
+                result << Element.new(:abbreviation, abbr, nil, :location => abbr_lineno)
+                text_lineno = strscan.current_line_number
               end
-              result << Element.new(:text, strscan.rest)
+              result << Element.new(:text, strscan.rest, nil, :location => text_lineno)
             else
               child
             end

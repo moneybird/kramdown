@@ -177,8 +177,11 @@ EOF
       s.default_executable = 'kramdown'
       s.add_development_dependency 'minitest', '~> 5.0'
       s.add_development_dependency 'coderay', '~> 1.0.0'
+      s.add_development_dependency 'rouge', '~> 1.8'
       s.add_development_dependency 'stringex', '~> 1.5.1'
-      s.add_development_dependency 'prawn', '~> 0.13'
+      s.add_development_dependency 'prawn', '~> 2.0'
+      s.add_development_dependency 'ritex', '~> 1.0'
+      s.add_development_dependency 'itextomml', '~> 1.5'
 
       #### Documentation
 
@@ -190,6 +193,13 @@ EOF
       s.author = 'Thomas Leitner'
       s.email = 't_leitner@gmx.at'
       s.homepage = "http://kramdown.gettalong.org"
+    end
+
+
+    task :gemspec => [ 'CONTRIBUTERS', 'VERSION', 'man/man1/kramdown.1'] do
+      print "Generating Gemspec\n"
+      contents = spec.to_ruby
+      File.open("kramdown.gemspec", 'w+') {|f| f.puts(contents)}
     end
 
     Gem::PackageTask.new(spec) do |pkg|
@@ -229,7 +239,7 @@ EOF
   COPYRIGHT=<<EOF
 #
 #--
-# Copyright (C) 2009-2013 Thomas Leitner <t_leitner@gmx.at>
+# Copyright (C) 2009-2015 Thomas Leitner <t_leitner@gmx.at>
 #
 # This file is part of kramdown which is licensed under the MIT.
 #++
@@ -254,5 +264,7 @@ EOF
   end
 
 end
+
+task :gemspec => ['dev:gemspec']
 
 task :clobber => ['dev:clobber']

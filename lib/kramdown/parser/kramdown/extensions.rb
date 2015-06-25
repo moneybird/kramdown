@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 #--
-# Copyright (C) 2009-2014 Thomas Leitner <t_leitner@gmx.at>
+# Copyright (C) 2009-2015 Thomas Leitner <t_leitner@gmx.at>
 #
 # This file is part of kramdown which is licensed under the MIT.
 #++
@@ -54,13 +54,13 @@ module Kramdown
       # Parse the generic extension at the current point. The parameter +type+ can either be :block
       # or :span depending whether we parse a block or span extension tag.
       def parse_extension_start_tag(type)
-        orig_pos = @src.pos
+        saved_pos = @src.save_pos
         start_line_number = @src.current_line_number
         @src.pos += @src.matched_size
 
         error_block = lambda do |msg|
           warning(msg)
-          @src.pos = orig_pos
+          @src.revert_pos(saved_pos)
           add_text(@src.getch) if type == :span
           false
         end
@@ -85,20 +85,20 @@ module Kramdown
           end
         end
 
-        if !handle_extension(ext, opts, body, type)
+        if !handle_extension(ext, opts, body, type, start_line_number)
           error_block.call("Invalid extension with name '#{ext}' specified on line #{start_line_number} - ignoring it")
         else
           true
         end
       end
 
-      def handle_extension(name, opts, body, type)
+      def handle_extension(name, opts, body, type, line_no = nil)
         case name
         when 'comment'
-          @tree.children << Element.new(:comment, body, nil, :category => type) if body.kind_of?(String)
+          @tree.children << Element.new(:comment, body, nil, :category => type, :location => line_no) if body.kind_of?(String)
           true
         when 'nomarkdown'
-          @tree.children << Element.new(:raw, body, nil, :category => type, :type => opts['type'].to_s.split(/\s+/)) if body.kind_of?(String)
+          @tree.children << Element.new(:raw, body, nil, :category => type, :location => line_no, :type => opts['type'].to_s.split(/\s+/)) if body.kind_of?(String)
           true
         when 'options'
           opts.select do |k,v|
@@ -117,7 +117,7 @@ module Kramdown
           end.each do |k,v|
             warning("Unknown kramdown option '#{k}'")
           end
-          @tree.children << Element.new(:eob, :extension) if type == :block
+          @tree.children << new_block_el(:eob, :extension) if type == :block
           true
         else
           false
@@ -129,7 +129,7 @@ module Kramdown
       ALD_ANY_CHARS = /\\\}|[^\}]/
       ALD_ID_NAME = /\w#{ALD_ID_CHARS}*/
       ALD_TYPE_KEY_VALUE_PAIR = /(#{ALD_ID_NAME})=("|')((?:\\\}|\\\2|[^\}\2])*?)\2/
-      ALD_TYPE_CLASS_NAME = /\.(#{ALD_ID_NAME})/
+      ALD_TYPE_CLASS_NAME = /\.(-?#{ALD_ID_NAME})/
       ALD_TYPE_ID_NAME = /#([A-Za-z][\w:-]*)/
       ALD_TYPE_ID_OR_CLASS = /#{ALD_TYPE_ID_NAME}|#{ALD_TYPE_CLASS_NAME}/
       ALD_TYPE_ID_OR_CLASS_MULTI = /((?:#{ALD_TYPE_ID_NAME}|#{ALD_TYPE_CLASS_NAME})+)/
@@ -152,16 +152,17 @@ module Kramdown
       def parse_block_extensions
         if @src.scan(ALD_START)
           parse_attribute_list(@src[2], @alds[@src[1]] ||= Utils::OrderedHash.new)
-          @tree.children << Element.new(:eob, :ald)
+          @tree.children << new_block_el(:eob, :ald)
           true
         elsif @src.check(EXT_BLOCK_START)
           parse_extension_start_tag(:block)
         elsif @src.scan(IAL_BLOCK_START)
-          if @tree.children.last && @tree.children.last.type != :blank && @tree.children.last.type != :eob
+          if @tree.children.last && @tree.children.last.type != :blank &&
+              (@tree.children.last.type != :eob || [:link_def, :abbrev_def, :footnote_def].include?(@tree.children.last.value))
             parse_attribute_list(@src[1], @tree.children.last.options[:ial] ||= Utils::OrderedHash.new)
-            @tree.children << Element.new(:eob, :ial) unless @src.check(IAL_BLOCK_START)
+            @tree.children << new_block_el(:eob, :ial) unless @src.check(IAL_BLOCK_START)
           else
-            parse_attribute_list(@src[1], @block_ial = Utils::OrderedHash.new)
+            parse_attribute_list(@src[1], @block_ial ||= Utils::OrderedHash.new)
           end
           true
         else

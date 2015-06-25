@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 #
 #--
-# Copyright (C) 2009-2014 Thomas Leitner <t_leitner@gmx.at>
+# Copyright (C) 2009-2015 Thomas Leitner <t_leitner@gmx.at>
 #
 # This file is part of kramdown which is licensed under the MIT.
 #++
 #
 
-require 'rexml/parsers/baseparser'
-require 'kramdown/parser/html'
+require 'kramdown/parser'
+require 'kramdown/converter'
+require 'kramdown/utils'
 
 module Kramdown
 
@@ -28,15 +29,6 @@ module Kramdown
     # HTML element.
     class Html < Base
 
-      begin
-        require 'coderay'
-
-        # Highlighting via coderay is available if this constant is +true+.
-        HIGHLIGHTING_AVAILABLE = true
-      rescue LoadError
-        HIGHLIGHTING_AVAILABLE = false  # :nodoc:
-      end
-
       include ::Kramdown::Utils::Html
       include ::Kramdown::Parser::Html::Constants
 
@@ -49,11 +41,11 @@ module Kramdown
         @footnote_counter = @footnote_start = @options[:footnote_nr]
         @footnotes = []
         @footnotes_by_name = {}
+        @footnote_location = nil
         @toc = []
         @toc_code = nil
         @indent = 2
         @stack = []
-        @coderay_enabled = @options[:enable_coderay] && HIGHLIGHTING_AVAILABLE
       end
 
       # The mapping of element type to conversion method.
@@ -100,13 +92,11 @@ module Kramdown
       def convert_codeblock(el, indent)
         attr = el.attr.dup
         lang = extract_code_language!(attr)
-        if @coderay_enabled && (lang || @options[:coderay_default_lang])
-          opts = {:wrap => @options[:coderay_wrap], :line_numbers => @options[:coderay_line_numbers],
-            :line_number_start => @options[:coderay_line_number_start], :tab_width => @options[:coderay_tab_width],
-            :bold_every => @options[:coderay_bold_every], :css => @options[:coderay_css]}
-          lang = (lang || @options[:coderay_default_lang]).to_sym
-          result = CodeRay.scan(el.value, lang).html(opts).chomp << "\n"
-          "#{' '*indent}<div#{html_attributes(attr)}>#{result}#{' '*indent}</div>\n"
+        highlighted_code = highlight_code(el.value, lang, :block)
+
+        if highlighted_code
+          add_syntax_highlighter_to_class_attr(attr)
+          "#{' '*indent}<div#{html_attributes(attr)}>#{highlighted_code}#{' '*indent}</div>\n"
         else
           result = escape_html(el.value)
           result.chomp!
@@ -149,6 +139,8 @@ module Kramdown
         if !@toc_code && (el.options[:ial][:refs].include?('toc') rescue nil)
           @toc_code = [el.type, el.attr, (0..128).to_a.map{|a| rand(36).to_s(36)}.join]
           @toc_code.last
+        elsif !@footnote_location && el.options[:ial] && (el.options[:ial][:refs] || []).include?('footnotes')
+          @footnote_location = (0..128).to_a.map{|a| rand(36).to_s(36)}.join
         else
           format_as_indented_block_html(el.type, el.attr, inner(el, indent), indent)
         end
@@ -258,13 +250,16 @@ module Kramdown
       end
 
       def convert_codespan(el, indent)
-        lang = extract_code_language(el.attr)
-        result = if @coderay_enabled && lang
-                   CodeRay.scan(el.value, lang.to_sym).html(:wrap => :span, :css => @options[:coderay_css]).chomp
-                 else
-                   escape_html(el.value)
-                 end
-        format_as_span_html('code', el.attr, result)
+        attr = el.attr.dup
+        lang = extract_code_language(attr)
+        result = highlight_code(el.value, lang, :span)
+        if result
+          add_syntax_highlighter_to_class_attr(attr)
+        else
+          result = escape_html(el.value)
+        end
+
+        format_as_span_html('code', attr, result)
       end
 
       def convert_footnote(el, indent)
@@ -318,24 +313,29 @@ module Kramdown
       end
 
       def convert_math(el, indent)
-        block = (el.options[:category] == :block)
-        value = (el.value =~ /<|&/ ? "% <![CDATA[\n#{el.value} %]]>" : el.value)
-        type = {:type => "math/tex#{block ? '; mode=display' : ''}"}
-        if block
-          format_as_block_html('script', type, value, indent)
+        if (result = format_math(el, :indent => indent))
+          result
+        elsif el.options[:category] == :block
+          format_as_block_html('pre', el.attr, "$$\n#{el.value}\n$$", indent)
         else
-          format_as_span_html('script', type, value)
+          format_as_span_html('span', el.attr, "$#{el.value}$")
         end
       end
 
       def convert_abbreviation(el, indent)
         title = @root.options[:abbrev_defs][el.value]
-        format_as_span_html("abbr", {:title => (title.empty? ? nil : title)}, el.value)
+        attr = @root.options[:abbrev_attr][el.value].dup
+        attr['title'] = title unless title.empty?
+        format_as_span_html("abbr", attr, el.value)
       end
 
       def convert_root(el, indent)
         result = inner(el, indent)
-        result << footnote_content
+        if @footnote_location
+          result.sub!(/#{@footnote_location}/, footnote_content)
+        else
+          result << footnote_content
+        end
         if @toc_code
           toc_tree = generate_toc_tree(@toc, @toc_code[0], @toc_code[1] || {})
           text = if toc_tree.children.size > 0
@@ -364,6 +364,11 @@ module Kramdown
         "#{' '*indent}<#{name}#{html_attributes(attr)}>\n#{body}#{' '*indent}</#{name}>\n"
       end
 
+      # Add the syntax highlighter name to the 'class' attribute of the given attribute hash.
+      def add_syntax_highlighter_to_class_attr(attr)
+        (attr['class'] = (attr['class'] || '') + " highlighter-#{@options[:syntax_highlighter]}").lstrip!
+      end
+
       # Generate and return an element tree for the table of contents.
       def generate_toc_tree(toc, type, attr)
         sections = Element.new(type, nil, attr)
@@ -372,7 +377,9 @@ module Kramdown
         toc.each do |level, id, children|
           li = Element.new(:li, nil, nil, {:level => level})
           li.children << Element.new(:p, nil, nil, {:transparent => true})
-          a = Element.new(:a, nil, {'href' => "##{id}"})
+          a = Element.new(:a, nil)
+          a.attr['href'] = "##{id}"
+          a.attr['id'] = "#{sections.attr['id']}-#{id}"
           a.children.concat(remove_footnotes(Marshal.load(Marshal.dump(children))))
           li.children.last.children << a
           li.children << Element.new(type)
@@ -424,10 +431,11 @@ module Kramdown
       def footnote_content
         ol = Element.new(:ol)
         ol.attr['start'] = @footnote_start if @footnote_start != 1
-        @footnotes.each do |name, data, _, repeat|
+        i = 0
+        while i < @footnotes.length
+          name, data, _, repeat = *@footnotes[i]
           li = Element.new(:li, nil, {'id' => "fn:#{name}"})
           li.children = Marshal.load(Marshal.dump(data.children))
-          ol.children << li
 
           if li.children.last.type == :p
             para = li.children.last
@@ -441,6 +449,9 @@ module Kramdown
           (1..repeat).each do |index|
             para.children << Element.new(:raw, FOOTNOTE_BACKLINK_FMT % [" ", "#{name}:#{index}", "&#8617;<sup>#{index+1}</sup>"])
           end
+
+          ol.children << Element.new(:raw, convert(li, 4))
+          i += 1
         end
         (ol.children.empty? ? '' : format_as_indented_block_html('div', {:class => "footnotes"}, convert(ol, 2), 0))
       end

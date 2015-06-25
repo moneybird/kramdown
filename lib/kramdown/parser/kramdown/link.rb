@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 #
 #--
-# Copyright (C) 2009-2014 Thomas Leitner <t_leitner@gmx.at>
+# Copyright (C) 2009-2015 Thomas Leitner <t_leitner@gmx.at>
 #
 # This file is part of kramdown which is licensed under the MIT.
 #++
 #
+
+require 'kramdown/parser/kramdown/escaped_chars'
 
 module Kramdown
   module Parser
@@ -13,18 +15,19 @@ module Kramdown
 
       # Normalize the link identifier.
       def normalize_link_id(id)
-        id.gsub(/[\s\n]+/, ' ').downcase
+        id.gsub(/[\s]+/, ' ').downcase
       end
 
-      LINK_DEFINITION_START = /^#{OPT_SPACE}\[([^\n\]]+)\]:[ \t]*(?:<(.*?)>|([^'"\n]*?\S[^'"\n]*?))[ \t]*?(?:\n?[ \t]*?(["'])(.+?)\4[ \t]*?)?\n/
+      LINK_DEFINITION_START = /^#{OPT_SPACE}\[([^\n\]]+)\]:[ \t]*(?:<(.*?)>|([^\n]*?\S[^\n]*?))(?:(?:[ \t]*?\n|[ \t]+?)[ \t]*?(["'])(.+?)\4)?[ \t]*?\n/
 
       # Parse the link definition at the current location.
       def parse_link_definition
+        return false if @src[3].to_s =~ /[ \t]+["']/
         @src.pos += @src.matched_size
         link_id, link_url, link_title = normalize_link_id(@src[1]), @src[2] || @src[3], @src[5]
         warning("Duplicate link ID '#{link_id}' on line #{@src.current_line_number} - overwriting") if @link_defs[link_id]
-        @link_defs[link_id] = [link_url, link_title]
-        @tree.children << Element.new(:eob, :link_def)
+        @tree.children << new_block_el(:eob, :link_def)
+        @link_defs[link_id] = [link_url, link_title, @tree.children.last]
         true
       end
       define_parser(:link_definition, LINK_DEFINITION_START)
@@ -32,7 +35,9 @@ module Kramdown
 
       # This helper methods adds the approriate attributes to the element +el+ of type +a+ or +img+
       # and the element itself to the @tree.
-      def add_link(el, href, title, alt_text = nil)
+      def add_link(el, href, title, alt_text = nil, ial = nil)
+        el.options[:ial] = ial
+        update_attr_with_ial(el.attr, ial) if ial
         if el.type == :a
           el.attr['href'] = href
         else
@@ -55,7 +60,8 @@ module Kramdown
       def parse_link
         start_line_number = @src.current_line_number
         result = @src.scan(LINK_START)
-        reset_pos = @src.pos
+        cur_pos = @src.pos
+        saved_pos = @src.save_pos
 
         link_type = (result =~ /^!/ ? :img : :a)
 
@@ -72,21 +78,22 @@ module Kramdown
           count - el.children.select {|c| c.type == :img}.size == 0
         end
         if !found || (link_type == :a && el.children.empty?)
-          @src.pos = reset_pos
+          @src.revert_pos(saved_pos)
           add_text(result)
           return
         end
-        alt_text = extract_string(reset_pos...@src.pos, @src)
+        alt_text = extract_string(cur_pos...@src.pos, @src).gsub(ESCAPED_CHARS, '\1')
         @src.scan(LINK_BRACKET_STOP_RE)
 
         # reference style link or no link url
         if @src.scan(LINK_INLINE_ID_RE) || !@src.check(/\(/)
           link_id = normalize_link_id(@src[1] || alt_text)
           if @link_defs.has_key?(link_id)
-            add_link(el, @link_defs[link_id].first, @link_defs[link_id].last, alt_text)
+            add_link(el, @link_defs[link_id][0], @link_defs[link_id][1], alt_text,
+                     @link_defs[link_id][2] && @link_defs[link_id][2].options[:ial])
           else
-            warning("No link definition for link ID '#{link_id}' found")
-            @src.pos = reset_pos
+            warning("No link definition for link ID '#{link_id}' found on line #{start_line_number}")
+            @src.revert_pos(saved_pos)
             add_text(result)
           end
           return
@@ -125,7 +132,7 @@ module Kramdown
         if @src.scan(LINK_INLINE_TITLE_RE)
           add_link(el, link_url, @src[2], alt_text)
         else
-          @src.pos = reset_pos
+          @src.revert_pos(saved_pos)
           add_text(result)
         end
       end

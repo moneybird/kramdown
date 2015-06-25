@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 #--
-# Copyright (C) 2009-2014 Thomas Leitner <t_leitner@gmx.at>
+# Copyright (C) 2009-2015 Thomas Leitner <t_leitner@gmx.at>
 #
 # This file is part of kramdown which is licensed under the MIT.
 #++
@@ -9,6 +9,7 @@
 
 require 'erb'
 require 'kramdown/utils'
+require 'kramdown/document'
 
 module Kramdown
 
@@ -181,8 +182,8 @@ module Kramdown
 
       # Extract the code block/span language from the attributes.
       def extract_code_language(attr)
-        if attr['class'] && attr['class'] =~ /\blanguage-\w+\b/
-          attr['class'].scan(/\blanguage-(\w+)\b/).first.first
+        if attr['class'] && attr['class'] =~ /\blanguage-\w[\w-]*\b/
+          attr['class'].scan(/\blanguage-(\w[\w-]*)\b/).first.first
         end
       end
 
@@ -191,9 +192,37 @@ module Kramdown
       # *Warning*: This version will modify the given attributes if a language is present.
       def extract_code_language!(attr)
         lang = extract_code_language(attr)
-        attr['class'] = attr['class'].sub(/\blanguage-\w+\b/, '').strip if lang
+        attr['class'] = attr['class'].sub(/\blanguage-\w[\w-]*\b/, '').strip if lang
         attr.delete('class') if lang && attr['class'].empty?
         lang
+      end
+
+      # Highlight the given +text+ in the language +lang+ with the syntax highlighter configured
+      # through the option 'syntax_highlighter'.
+      def highlight_code(text, lang, type, opts = {})
+        return nil unless @options[:syntax_highlighter]
+
+        highlighter = ::Kramdown::Converter.syntax_highlighter(@options[:syntax_highlighter])
+        if highlighter
+          highlighter.call(self, text, lang, type, opts)
+        else
+          warning("The configured syntax highlighter #{@options[:syntax_highlighter]} is not available.")
+          nil
+        end
+      end
+
+      # Format the given math element with the math engine configured through the option
+      # 'math_engine'.
+      def format_math(el, opts = {})
+        return nil unless @options[:math_engine]
+
+        engine = ::Kramdown::Converter.math_engine(@options[:math_engine])
+        if engine
+          engine.call(self, el, opts)
+        else
+          warning("The configured math engine #{@options[:math_engine]} is not available.")
+          nil
+        end
       end
 
       # Generate an unique alpha-numeric ID from the the string +str+ for use as a header ID.

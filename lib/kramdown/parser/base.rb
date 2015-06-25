@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 #
 #--
-# Copyright (C) 2009-2014 Thomas Leitner <t_leitner@gmx.at>
+# Copyright (C) 2009-2015 Thomas Leitner <t_leitner@gmx.at>
 #
 # This file is part of kramdown which is licensed under the MIT.
 #++
 #
 
-require 'kramdown/utils/string_scanner'
+require 'kramdown/utils'
+require 'kramdown/parser'
 
 module Kramdown
 
@@ -51,7 +52,8 @@ module Kramdown
       def initialize(source, options)
         @source = source
         @options = Kramdown::Options.merge(options)
-        @root = Element.new(:root, nil, nil, :encoding => (source.encoding rescue nil), :location => 1)
+        @root = Element.new(:root, nil, nil, :encoding => (source.encoding rescue nil), :location => 1,
+                            :options => {}, :abbrev_defs => {}, :abbrev_attr => {})
         @warnings = []
         @text_type = :text
       end
@@ -88,7 +90,9 @@ module Kramdown
       # +\n+ and makes sure +source+ ends with a new line character).
       def adapt_source(source)
         if source.respond_to?(:encode)
-          raise "The encoding of the source text is not valid!" if !source.valid_encoding?
+          if !source.valid_encoding?
+            raise "The source text contains invalid characters for the used encoding #{source.encoding}"
+          end
           source = source.encode('UTF-8')
         end
         source.gsub(/\r\n?/, "\n").chomp + "\n"
@@ -97,10 +101,11 @@ module Kramdown
       # This helper method adds the given +text+ either to the last element in the +tree+ if it is a
       # +type+ element or creates a new text element with the given +type+.
       def add_text(text, tree = @tree, type = @text_type)
-        if tree.children.last && tree.children.last.type == type
-          tree.children.last.value << text
+        last = tree.children.last
+        if last && last.type == type
+          last.value << text
         elsif !text.empty?
-          tree.children << Element.new(type, text)
+          tree.children << Element.new(type, text, nil, :location => (last && last.options[:location] || tree.options[:location]))
         end
       end
 

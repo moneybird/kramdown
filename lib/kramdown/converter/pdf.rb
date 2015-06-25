@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
 #
 #--
-# Copyright (C) 2009-2014 Thomas Leitner <t_leitner@gmx.at>
+# Copyright (C) 2009-2015 Thomas Leitner <t_leitner@gmx.at>
 #
 # This file is part of kramdown which is licensed under the MIT.
 #++
 #
 
 require 'prawn'
-require 'kramdown/utils/entities'
+require 'prawn/table'
+require 'kramdown/converter'
+require 'kramdown/utils'
 require 'open-uri'
 
 module Kramdown
@@ -139,12 +141,13 @@ module Kramdown
 
       def render_standalone_image(el, opts)
         img = el.children.first
+        line = img.options[:location]
 
         if img.attr['src'].empty?
-          warning("Rendering an image without a source is not possible")
+          warning("Rendering an image without a source is not possible#{line ? " (line #{line})" : ''}")
           return nil
         elsif img.attr['src'] !~ /\.jpe?g$|\.png$/
-          warning("Cannot render images other than JPEG or PNG, got #{img.attr['src']}")
+          warning("Cannot render images other than JPEG or PNG, got #{img.attr['src']}#{line ? " on line #{line}" : ''}")
           return nil
         end
 
@@ -287,7 +290,8 @@ module Kramdown
             data << []
             row.children.each do |cell|
               if cell.children.any? {|child| child.options[:category] == :block}
-                warning("Can't render tables with cells containing block elements")
+                line = el.options[:location]
+                warning("Can't render tables with cells containing block elements#{line ? " (line #{line})" : ''}")
                 return
               end
               cell_data = inner(cell, opts)
@@ -404,7 +408,8 @@ module Kramdown
       end
 
       def render_img(el, *args) #:nodoc:
-        warning("Rendering span images is not supported for PDF converter")
+        line = el.options[:location]
+        warning("Rendering span images is not supported for PDF converter#{line ? " (line #{line})" : ''}")
         nil
       end
 
@@ -428,7 +433,8 @@ module Kramdown
       alias_method :render_blank, :render_xml_comment
 
       def render_footnote(el, *args) #:nodoc:
-        warning("Rendering #{el.type} not supported for PDF converter")
+        line = el.options[:location]
+        warning("Rendering #{el.type} not supported for PDF converter#{line ? " (line #{line})" : ''}")
         nil
       end
       alias_method :render_raw, :render_footnote
